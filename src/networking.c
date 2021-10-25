@@ -2131,10 +2131,13 @@ void processInputBuffer(client *c) {
             /* If we are in the context of an I/O thread, we can't really
              * execute the command here. All we can do is to flag the client
              * as one that needs to process the command. */
+            #ifdef USE_KVDK
+            #else
             if (c->flags & CLIENT_PENDING_READ) {
                 c->flags |= CLIENT_PENDING_COMMAND;
                 break;
             }
+            #endif
 
             /* We are finally ready to execute the command. */
             if (processCommandAndResetClient(c) == C_ERR) {

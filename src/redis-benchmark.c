@@ -1847,13 +1847,14 @@ int main(int argc, const char **argv) {
         }
 
         if (test_is_selected("set")) {
-            len = redisFormatCommand(&cmd,"SET key%s:__rand_int__ %s",tag,data);
+            len = redisFormatCommand(&cmd,"kvdk.set key%s:__rand_int__ %s",tag,data);
+            printf("*****: %d %d %d\n", len, strlen(tag), strlen(data));
             benchmark("SET",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("get")) {
-            len = redisFormatCommand(&cmd,"GET key%s:__rand_int__",tag);
+            len = redisFormatCommand(&cmd,"kvdk.get key%s:__rand_int__",tag);
             benchmark("GET",cmd,len);
             free(cmd);
         }
