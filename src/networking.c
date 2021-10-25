@@ -2184,11 +2184,11 @@ int processInputBuffer(client *c) {
             /* If we are in the context of an I/O thread, we can't really
              * execute the command here. All we can do is to flag the client
              * as one that needs to process the command. */
-            if (io_threads_op != IO_THREADS_OP_IDLE) {
-                serverAssert(io_threads_op == IO_THREADS_OP_READ);
-                c->flags |= CLIENT_PENDING_COMMAND;
-                break;
-            }
+            // if (io_threads_op != IO_THREADS_OP_IDLE) {
+            //     serverAssert(io_threads_op == IO_THREADS_OP_READ);
+            //     c->flags |= CLIENT_PENDING_COMMAND;
+            //     break;
+            // }
 
             /* We are finally ready to execute the command. */
             if (processCommandAndResetClient(c) == C_ERR) {

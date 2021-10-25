@@ -920,7 +920,6 @@ int RM_CreateCommand(RedisModuleCtx *ctx, const char *name, RedisModuleCmdFunc c
     struct redisCommand *rediscmd;
     RedisModuleCommandProxy *cp;
     sds cmdname = sdsnew(name);
-
     /* Check if the command name is busy. */
     if (lookupCommand(cmdname) != NULL) {
         sdsfree(cmdname);

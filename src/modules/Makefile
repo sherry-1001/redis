@@ -13,12 +13,18 @@ endif
 
 .SUFFIXES: .c .so .xo .o
 
-all: helloworld.so hellotype.so helloblock.so hellocluster.so hellotimer.so hellodict.so hellohook.so helloacl.so
+all: helloworld.so hellotype.so helloblock.so hellocluster.so hellotimer.so hellodict.so hellohook.so helloacl.so kvdk.so
 
 .c.xo:
 	$(CC) -I. $(CFLAGS) $(SHOBJ_CFLAGS) -fPIC -c $< -o $@
 
-helloworld.xo: ../redismodule.h
+
+kvdk.xo: ../redismodule.h 
+
+kvdk.so: kvdk.xo
+	$(LD) -I ../../deps/kvdk/include -L../../deps/kvdk/ -o $@ $< $(SHOBJ_LDFLAGS) $(LIBS) -lc -lengine
+
+helloworld.xo: ../redismodule.h 
 
 helloworld.so: helloworld.xo
 	$(LD) -o $@ $< $(SHOBJ_LDFLAGS) $(LIBS) -lc

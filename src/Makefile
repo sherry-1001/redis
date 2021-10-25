@@ -68,6 +68,13 @@ ifneq (,$(findstring armv,$(uname_M)))
 endif
 endif
 
+# Intel KVDK
+ifeq ($(USE_KVDK), yes)
+	DEPENDENCY_TARGETS+= kvdk
+	FINAL_CFLAGS+= -DUSE_KVDK -I../deps/kvdk/include
+	FINAL_LIBS := ../deps/kvdk/libengine.so $(FINAL_LIBS)
+endif
+
 # Backwards compatibility for selecting an allocator
 ifeq ($(USE_TCMALLOC),yes)
 	MALLOC=tcmalloc
@@ -260,7 +267,7 @@ endif
 
 ifndef V
     define MAKE_INSTALL
-        @printf '    %b %b\n' $(LINKCOLOR)INSTALL$(ENDCOLOR) $(BINCOLOR)$(1)$(ENDCOLOR) 1>&2
+        @printf '%b %b\n' $(LINKCOLOR)INSTALL$(ENDCOLOR) $(BINCOLOR)$(1)$(ENDCOLOR) 1>&2
         @$(INSTALL) $(1) $(2)
     endef
 else
