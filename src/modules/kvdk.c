@@ -56,9 +56,10 @@
 #define POPULATE_PMEM_SPACE 1U
 
 const char *engine_path = "";
-// create configs and open engine
 KVDKEngine *engine;
 KVDKConfigs *config = NULL;
+
+static const char* enum_to_str[] = { FOREACH_ENUM(GENERATE_STRING)};
 
 int GetInt64Value(uint64_t *var, const char *value) {
   if (strstr(value, "<<")) {
@@ -154,13 +155,11 @@ KVDKConfigs *LoadAndCreateConfigs(RedisModuleString **argv,
   return kvdk_configs;
 }
 
-int InitEngine(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int InitEngine(RedisModuleString **argv, int argc) {
   config = LoadAndCreateConfigs(argv, argc);
   if (config == NULL) {
     return REDISMODULE_ERR;
   }
-  char *error = NULL;
-
   if ((engine_path != NULL && engine_path[0] == '\0')) {
     return REDISMODULE_ERR;
   }
@@ -169,12 +168,11 @@ int InitEngine(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   KVDKRemovePMemContents(engine_path);
 
   // open engine
-  engine = KVDKOpen(engine_path, config, stdout, &error);
+  KVDKStatus s = KVDKOpen(engine_path, config, stdout, &engine);
   
-  if (error) {
-    return RedisModule_ReplyWithError(ctx, "can't open engine");
+  if (s!=Ok) {
+    return REDISMODULE_ERR;
   }
-  free(error);
   return REDISMODULE_OK;
 }
 
@@ -182,17 +180,15 @@ int KVDKSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                          int argc) {
   if (argc != 3)
     return RedisModule_WrongArity(ctx);
-  char *error = NULL;
   size_t key_len;
   const char *key_str = RedisModule_StringPtrLen(argv[1], &key_len);
   size_t val_len;
   const char *val_str = RedisModule_StringPtrLen(argv[2], &val_len);
 
-  KVDKSet(engine, key_str, key_len, val_str, val_len, &error);
-  if (error) {
-    return REDISMODULE_ERR;
+  KVDKStatus s = KVDKSet(engine, key_str, key_len, val_str, val_len);
+  if (s!= Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
-  free(error);
   return RedisModule_ReplyWithLongLong(ctx, 1);
 }
 
@@ -200,18 +196,75 @@ int KVDKGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                          int argc) {
   if (argc != 2)
     return RedisModule_WrongArity(ctx);
-  char *error = NULL;
   size_t key_len;
   const char *key_str = RedisModule_StringPtrLen(argv[1], &key_len);
   size_t val_len;
-  const char *val_str;
-
-  val_str = KVDKGet(engine, key_str, key_len, &val_len, &error);
-  if (error) {
-    return REDISMODULE_ERR;
+  char *val_str;
+  KVDKStatus s = KVDKGet(engine, key_str, key_len, &val_len, &val_str);
+  if (s != Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
-  free(error);
   return RedisModule_ReplyWithStringBuffer(ctx, val_str, val_len);
+}
+
+int KVDKDelete_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                         int argc) {
+  if (argc != 2)
+    return RedisModule_WrongArity(ctx);
+  size_t key_len;
+  const char *key_str = RedisModule_StringPtrLen(argv[1], &key_len);
+
+  KVDKStatus s = KVDKDelete(engine, key_str, key_len);
+  if (s!= Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithLongLong(ctx, 1);
+}
+
+int KVDKHSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                         int argc) {
+  if (argc != 4)
+    return RedisModule_WrongArity(ctx);
+  size_t collection_len, key_len, val_len;
+  const char *collection_str = RedisModule_StringPtrLen(argv[1], &collection_len);
+  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
+  const char *val_str = RedisModule_StringPtrLen(argv[3], &val_len);
+
+  KVDKStatus s = KVDKHashSet(engine, collection_str, collection_len, key_str, key_len, val_str, val_len);
+  if (s!= Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithLongLong(ctx, 1);
+}
+
+int KVDKHGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                         int argc) {
+  if (argc != 3)
+    return RedisModule_WrongArity(ctx);
+  size_t collection_len, key_len, val_len;
+  const char *collection_str = RedisModule_StringPtrLen(argv[1], &collection_len);
+  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
+  char *val_str;
+  KVDKStatus s = KVDKHashGet(engine, collection_str, collection_len, key_str, key_len, &val_len, &val_str);
+  if (s!= Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithStringBuffer(ctx, val_str, val_len);;
+}
+
+int KVDKHDelete_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                         int argc) {
+  if (argc != 3)
+    return RedisModule_WrongArity(ctx);
+  size_t collection_len, key_len;
+  const char *collection_str = RedisModule_StringPtrLen(argv[1], &collection_len);
+  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
+
+  KVDKStatus s = KVDKHashDelete(engine, collection_str, collection_len, key_str, key_len);
+  if (s!= Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithLongLong(ctx, 1);
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv,
@@ -223,7 +276,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (RedisModule_Init(ctx, "kvdk", 1, REDISMODULE_APIVER_1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (InitEngine(ctx, argv, argc) == REDISMODULE_ERR) {
+  if (InitEngine(argv, argc) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
   
@@ -233,12 +286,24 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (RedisModule_CreateCommand(ctx, "kvdk.get", KVDKGet_RedisCommand,
                                 "readonly", 1, 1, 1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "kvdk.delete", KVDKDelete_RedisCommand,
+                                "readonly", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "kvdk.hset", KVDKHSet_RedisCommand,
+                                "readonly", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "kvdk.hget", KVDKHGet_RedisCommand,
+                                "readonly", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "kvdk.hdelete", KVDKHDelete_RedisCommand,
+                                "readonly", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
   return REDISMODULE_OK;
 }
 
 int RedisModule_OnUnload(RedisModuleCtx *ctx) {
     REDISMODULE_NOT_USED(ctx);
-    KVDKConigsDestory(config);
+    KVDKConfigsDestory(config);
     KVDKCloseEngine(engine);
     return REDISMODULE_OK;
 }
