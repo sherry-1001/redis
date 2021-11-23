@@ -59,22 +59,22 @@ const char *engine_path = "";
 KVDKEngine *engine;
 KVDKConfigs *config = NULL;
 
-static const char* enum_to_str[] = { FOREACH_ENUM(GENERATE_STRING)};
+static const char *enum_to_str[] = {FOREACH_ENUM(GENERATE_STRING)};
 
 int GetInt64Value(uint64_t *var, const char *value) {
   if (strstr(value, "<<")) {
     uint64_t left_val, right_val;
-    left_val = strtoull(strtok((char*)value, "<<"), NULL, 10);
+    left_val = strtoull(strtok((char *)value, "<<"), NULL, 10);
     right_val = strtoull(strtok(NULL, "<<"), NULL, 10);
     *var = left_val << right_val;
   } else if (strstr(value, ">>")) {
     uint64_t left_val, right_val;
-    left_val = strtoull(strtok((char*)value, ">>"), NULL, 10);
+    left_val = strtoull(strtok((char *)value, ">>"), NULL, 10);
     right_val = strtoull(strtok(NULL, ">>"), NULL, 10);
     *var = left_val >> right_val;
   } else if (strstr(value, "*")) {
     *var = 1;
-    char *p = strtok( (char*)value, "*");
+    char *p = strtok((char *)value, "*");
     while (p) {
       (*var) *= strtoull(p, NULL, 10);
       p = strtok(NULL, "*");
@@ -98,7 +98,7 @@ int GetInt32Value(uint32_t *var, const char *value) {
     *var = left_val >> right_val;
   } else if (strstr(value, "*")) {
     *var = 1;
-    char *p = strtok((char*)value, "*");
+    char *p = strtok((char *)value, "*");
     while (p) {
       (*var) *= (uint32_t)strtoul(p, NULL, 10);
       p = strtok(NULL, "*");
@@ -109,8 +109,7 @@ int GetInt32Value(uint32_t *var, const char *value) {
   return 1;
 }
 
-KVDKConfigs *LoadAndCreateConfigs(RedisModuleString **argv,
-                                  int argc) {
+KVDKConfigs *LoadAndCreateConfigs(RedisModuleString **argv, int argc) {
   uint64_t pmem_file_size = PMEM_FILE_SIZE, hash_bucket_num = HASH_BUCKET_NUM,
            pmem_segment_blocks = PMEM_SEG_BLOCKS, max_write_threads;
   uint32_t pmem_block_size = PMEM_BLOCK_SIZE,
@@ -169,8 +168,8 @@ int InitEngine(RedisModuleString **argv, int argc) {
 
   // open engine
   KVDKStatus s = KVDKOpen(engine_path, config, stdout, &engine);
-  
-  if (s!=Ok) {
+
+  if (s != Ok) {
     return REDISMODULE_ERR;
   }
   return REDISMODULE_OK;
@@ -186,7 +185,7 @@ int KVDKSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   const char *val_str = RedisModule_StringPtrLen(argv[2], &val_len);
 
   KVDKStatus s = KVDKSet(engine, key_str, key_len, val_str, val_len);
-  if (s!= Ok) {
+  if (s != Ok) {
     return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
   return RedisModule_ReplyWithLongLong(ctx, 1);
@@ -201,67 +200,137 @@ int KVDKGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   size_t val_len;
   char *val_str;
   KVDKStatus s = KVDKGet(engine, key_str, key_len, &val_len, &val_str);
-  if (s != Ok) {
+  if (s != Ok && s != NotFound) {
     return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
   return RedisModule_ReplyWithStringBuffer(ctx, val_str, val_len);
 }
 
 int KVDKDelete_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
-                         int argc) {
+                            int argc) {
   if (argc != 2)
     return RedisModule_WrongArity(ctx);
   size_t key_len;
   const char *key_str = RedisModule_StringPtrLen(argv[1], &key_len);
 
   KVDKStatus s = KVDKDelete(engine, key_str, key_len);
-  if (s!= Ok) {
+  if (s != Ok) {
     return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
   return RedisModule_ReplyWithLongLong(ctx, 1);
 }
 
 int KVDKHSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
-                         int argc) {
+                          int argc) {
   if (argc != 4)
     return RedisModule_WrongArity(ctx);
   size_t collection_len, key_len, val_len;
-  const char *collection_str = RedisModule_StringPtrLen(argv[1], &collection_len);
+  const char *collection_str =
+      RedisModule_StringPtrLen(argv[1], &collection_len);
   const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
   const char *val_str = RedisModule_StringPtrLen(argv[3], &val_len);
 
-  KVDKStatus s = KVDKHashSet(engine, collection_str, collection_len, key_str, key_len, val_str, val_len);
-  if (s!= Ok) {
+  KVDKStatus s = KVDKHashSet(engine, collection_str, collection_len, key_str,
+                             key_len, val_str, val_len);
+  if (s != Ok) {
     return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
   return RedisModule_ReplyWithLongLong(ctx, 1);
 }
 
 int KVDKHGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
-                         int argc) {
+                          int argc) {
   if (argc != 3)
     return RedisModule_WrongArity(ctx);
   size_t collection_len, key_len, val_len;
-  const char *collection_str = RedisModule_StringPtrLen(argv[1], &collection_len);
+  const char *collection_str =
+      RedisModule_StringPtrLen(argv[1], &collection_len);
   const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
   char *val_str;
-  KVDKStatus s = KVDKHashGet(engine, collection_str, collection_len, key_str, key_len, &val_len, &val_str);
-  if (s!= Ok) {
+  KVDKStatus s = KVDKHashGet(engine, collection_str, collection_len, key_str,
+                             key_len, &val_len, &val_str);
+  if (s != Ok && s != NotFound) {
     return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
-  return RedisModule_ReplyWithStringBuffer(ctx, val_str, val_len);;
+  return RedisModule_ReplyWithStringBuffer(ctx, val_str, val_len);
+  ;
 }
 
 int KVDKHDelete_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
-                         int argc) {
+                             int argc) {
   if (argc != 3)
     return RedisModule_WrongArity(ctx);
   size_t collection_len, key_len;
-  const char *collection_str = RedisModule_StringPtrLen(argv[1], &collection_len);
+  const char *collection_str =
+      RedisModule_StringPtrLen(argv[1], &collection_len);
   const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
 
-  KVDKStatus s = KVDKHashDelete(engine, collection_str, collection_len, key_str, key_len);
-  if (s!= Ok) {
+  KVDKStatus s =
+      KVDKHashDelete(engine, collection_str, collection_len, key_str, key_len);
+  if (s != Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithLongLong(ctx, 1);
+}
+
+int KVDKSAdd_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                          int argc) {
+  if (argc != 3)
+    return RedisModule_WrongArity(ctx);
+  size_t set_len, key_len;
+  const char *set_str = RedisModule_StringPtrLen(argv[1], &set_len);
+  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
+
+  KVDKStatus s = KVDKHashSet(engine, set_str, set_len, key_str, key_len, "", 0);
+  if (s != Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithLongLong(ctx, 1);
+}
+
+int KVDKSRemove_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                             int argc) {
+  if (argc != 3)
+    return RedisModule_WrongArity(ctx);
+  size_t set_len, key_len;
+  const char *set_str = RedisModule_StringPtrLen(argv[1], &set_len);
+  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
+
+  KVDKStatus s = KVDKHashDelete(engine, set_str, set_len, key_str, key_len);
+  if (s != Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithLongLong(ctx, 1);
+}
+
+int value_compare_func(const char *src_value, size_t src_val_len,
+                       const char *target_value, size_t target_val_len) {
+  double src_score = strtod(src_value, NULL);
+  double target_score = strtod(target_value, NULL);
+  if (src_score == target_score)
+    return 0;
+  else if (src_score < target_score)
+    return -1;
+  else
+    return 1;
+}
+
+int KVDKZAdd_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                          int argc) {
+  if (argc != 4)
+    return RedisModule_WrongArity(ctx);
+  size_t collection_len, key_len, val_len;
+  const char *collection_str =
+      RedisModule_StringPtrLen(argv[1], &collection_len);
+  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
+  const char *val_str = RedisModule_StringPtrLen(argv[3], &val_len);
+
+  KVDKSetSortedCompareFunc(engine, collection_str, collection_len, NULL, value_compare_func);
+  KVDKStatus s = KVDKSortedDelete(engine, collection_str, collection_len,
+                                  key_str, key_len);
+  s = KVDKSortedSet(engine, collection_str, collection_len, key_str, key_len,
+                    val_str, val_len);
+  if (s != Ok) {
     return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
   return RedisModule_ReplyWithLongLong(ctx, 1);
@@ -279,31 +348,47 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (InitEngine(argv, argc) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
-  
-  if (RedisModule_CreateCommand(ctx, "kvdk.set", KVDKSet_RedisCommand,
-                                "write", 1, 1, 1) == REDISMODULE_ERR)
+
+  // ========================== string ============================
+  if (RedisModule_CreateCommand(ctx, "kvdk.set", KVDKSet_RedisCommand, "write",
+                                1, 1, 1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
   if (RedisModule_CreateCommand(ctx, "kvdk.get", KVDKGet_RedisCommand,
                                 "readonly", 1, 1, 1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
   if (RedisModule_CreateCommand(ctx, "kvdk.delete", KVDKDelete_RedisCommand,
-                                "readonly", 1, 1, 1) == REDISMODULE_ERR)
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
+
+  // ========================== hash ================================
   if (RedisModule_CreateCommand(ctx, "kvdk.hset", KVDKHSet_RedisCommand,
-                                "readonly", 1, 1, 1) == REDISMODULE_ERR)
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
   if (RedisModule_CreateCommand(ctx, "kvdk.hget", KVDKHGet_RedisCommand,
                                 "readonly", 1, 1, 1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
   if (RedisModule_CreateCommand(ctx, "kvdk.hdelete", KVDKHDelete_RedisCommand,
-                                "readonly", 1, 1, 1) == REDISMODULE_ERR)
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  // ========================== set ==================================
+  if (RedisModule_CreateCommand(ctx, "kvdk.sadd", KVDKSAdd_RedisCommand,
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "kvdk.srem", KVDKSRemove_RedisCommand,
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  // ========================== skiplist ==================================
+  if (RedisModule_CreateCommand(ctx, "kvdk.zadd", KVDKZAdd_RedisCommand,
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
   return REDISMODULE_OK;
 }
 
 int RedisModule_OnUnload(RedisModuleCtx *ctx) {
-    REDISMODULE_NOT_USED(ctx);
-    KVDKConfigsDestory(config);
-    KVDKCloseEngine(engine);
-    return REDISMODULE_OK;
+  REDISMODULE_NOT_USED(ctx);
+  KVDKConfigsDestory(config);
+  KVDKCloseEngine(engine);
+  return REDISMODULE_OK;
 }

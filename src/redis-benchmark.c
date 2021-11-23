@@ -1848,7 +1848,6 @@ int main(int argc, const char **argv) {
 
         if (test_is_selected("set")) {
             len = redisFormatCommand(&cmd,"kvdk.set key%s:__rand_int__ %s",tag,data);
-            printf("*****: %d %d %d\n", len, strlen(tag), strlen(data));
             benchmark("SET",cmd,len);
             free(cmd);
         }
@@ -1891,14 +1890,14 @@ int main(int argc, const char **argv) {
 
         if (test_is_selected("sadd")) {
             len = redisFormatCommand(&cmd,
-                "SADD myset%s element:__rand_int__",tag);
+                "kvdk.sadd myset%s element:__rand_int__",tag);
             benchmark("SADD",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("hset")) {
             len = redisFormatCommand(&cmd,
-                "HSET myhash%s element:__rand_int__ %s",tag,data);
+                "kvdk.hset myhash%s element:__rand_int__ %s",tag,data);
             benchmark("HSET",cmd,len);
             free(cmd);
         }
@@ -1913,7 +1912,7 @@ int main(int argc, const char **argv) {
             char *score = "0";
             if (config.randomkeys) score = "__rand_int__";
             len = redisFormatCommand(&cmd,
-                "ZADD myzset%s %s element:__rand_int__",tag,score);
+                "kvdk.zadd myzset%s %s element:__rand_int__",tag,score);
             benchmark("ZADD",cmd,len);
             free(cmd);
         }
