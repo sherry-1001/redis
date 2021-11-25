@@ -325,15 +325,88 @@ int KVDKZAdd_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
   const char *val_str = RedisModule_StringPtrLen(argv[3], &val_len);
 
-  KVDKSetSortedCompareFunc(engine, collection_str, collection_len, NULL, value_compare_func);
-  KVDKStatus s = KVDKSortedDelete(engine, collection_str, collection_len,
-                                  key_str, key_len);
-  s = KVDKSortedSet(engine, collection_str, collection_len, key_str, key_len,
-                    val_str, val_len);
+  // KVDKSetSortedCompareFunc(engine, collection_str, collection_len, NULL,
+  // value_compare_func); KVDKStatus s = KVDKSortedDelete(engine,
+  // collection_str, collection_len,
+  //                                 key_str, key_len);
+  KVDKStatus s = KVDKSortedSet(engine, collection_str, collection_len, key_str,
+                               key_len, val_str, val_len);
   if (s != Ok) {
     return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
   return RedisModule_ReplyWithLongLong(ctx, 1);
+}
+
+int KVDKLPUSH_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                           int argc) {
+  printf("arg num: %d\n", argc);
+  if (argc != 3)
+    return RedisModule_WrongArity(ctx);
+  size_t collection_len;
+  const char *collection_str =
+      RedisModule_StringPtrLen(argv[1], &collection_len);
+  size_t key_len;
+  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
+
+  KVDKStatus s =
+      KVDKLPush(engine, collection_str, collection_len, key_str, key_len);
+  if (s != Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithLongLong(ctx, 1);
+}
+
+int KVDKLPOP_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                          int argc) {
+  if (argc != 2)
+    return RedisModule_WrongArity(ctx);
+  size_t collection_len;
+  const char *collection_str =
+      RedisModule_StringPtrLen(argv[1], &collection_len);
+
+  char *key_str;
+  size_t key_len;
+  KVDKStatus s =
+      KVDKLPop(engine, collection_str, collection_len, &key_str, &key_len);
+  if (s != Ok && s != NotFound) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithStringBuffer(ctx, key_str, key_len);
+}
+
+int KVDKRPUSH_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                           int argc) {
+  if (argc != 3)
+    return RedisModule_WrongArity(ctx);
+  size_t collection_len;
+  const char *collection_str =
+      RedisModule_StringPtrLen(argv[1], &collection_len);
+  size_t key_len;
+  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
+
+  KVDKStatus s =
+      KVDKRPush(engine, collection_str, collection_len, key_str, key_len);
+  if (s != Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithLongLong(ctx, 1);
+}
+
+int KVDKRPOP_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                          int argc) {
+  if (argc != 2)
+    return RedisModule_WrongArity(ctx);
+  size_t collection_len;
+  const char *collection_str =
+      RedisModule_StringPtrLen(argv[1], &collection_len);
+  char *key_str;
+  size_t key_len;
+  KVDKStatus s =
+      KVDKRPop(engine, collection_str, collection_len, &key_str, &key_len);
+  if (s != Ok && s != NotFound) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+  return RedisModule_ReplyWithStringBuffer(ctx, key_str, key_len);
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv,
@@ -381,6 +454,20 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   // ========================== skiplist ==================================
   if (RedisModule_CreateCommand(ctx, "kvdk.zadd", KVDKZAdd_RedisCommand,
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  // ========================== lists ==================================
+  if (RedisModule_CreateCommand(ctx, "kvdk.lpush", KVDKLPUSH_RedisCommand,
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "kvdk.lpop", KVDKLPOP_RedisCommand,
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "kvdk.rpush", KVDKRPUSH_RedisCommand,
+                                "write", 1, 1, 1) == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "kvdk.rpop", KVDKRPOP_RedisCommand,
                                 "write", 1, 1, 1) == REDISMODULE_ERR)
     return REDISMODULE_ERR;
   return REDISMODULE_OK;
