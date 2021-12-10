@@ -224,6 +224,13 @@ ifeq ($(BUILD_WITH_SYSTEMD),yes)
 	FINAL_CFLAGS+= -DHAVE_LIBSYSTEMD
 endif
 
+# Intel KVDK
+ifeq ($(USE_KVDK),yes)
+    DEPENDENCY_TARGETS+= kvdk
+	FINAL_CFLAGS+= -DUSE_KVDK -I../deps/kvdk/include
+	FINAL_LIBS := ../deps/kvdk/libengine.so $(FINAL_LIBS)
+endif
+
 ifeq ($(MALLOC),tcmalloc)
 	FINAL_CFLAGS+= -DUSE_TCMALLOC
 	FINAL_LIBS+= -ltcmalloc

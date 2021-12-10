@@ -1847,13 +1847,13 @@ int main(int argc, const char **argv) {
         }
 
         if (test_is_selected("set")) {
-            len = redisFormatCommand(&cmd,"SET key%s:__rand_int__ %s",tag,data);
+            len = redisFormatCommand(&cmd,"kvdk.set key%s:__rand_int__ %s",tag,data);
             benchmark("SET",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("get")) {
-            len = redisFormatCommand(&cmd,"GET key%s:__rand_int__",tag);
+            len = redisFormatCommand(&cmd,"kvdk.get key%s:__rand_int__",tag);
             benchmark("GET",cmd,len);
             free(cmd);
         }
@@ -1865,39 +1865,39 @@ int main(int argc, const char **argv) {
         }
 
         if (test_is_selected("lpush")) {
-            len = redisFormatCommand(&cmd,"LPUSH mylist%s %s",tag,data);
+            len = redisFormatCommand(&cmd,"kvdk.lpush mylist%s %s",tag,data);
             benchmark("LPUSH",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("rpush")) {
-            len = redisFormatCommand(&cmd,"RPUSH mylist%s %s",tag,data);
+            len = redisFormatCommand(&cmd,"kvdk.rpush mylist%s %s",tag,data);
             benchmark("RPUSH",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("lpop")) {
-            len = redisFormatCommand(&cmd,"LPOP mylist%s",tag);
+            len = redisFormatCommand(&cmd,"kvdk.lpop mylist%s",tag);
             benchmark("LPOP",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("rpop")) {
-            len = redisFormatCommand(&cmd,"RPOP mylist%s",tag);
+            len = redisFormatCommand(&cmd,"kvdk.rpop mylist%s",tag);
             benchmark("RPOP",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("sadd")) {
             len = redisFormatCommand(&cmd,
-                "SADD myset%s element:__rand_int__",tag);
+                "kvdk.sadd myset%s element:__rand_int__",tag);
             benchmark("SADD",cmd,len);
             free(cmd);
         }
 
         if (test_is_selected("hset")) {
             len = redisFormatCommand(&cmd,
-                "HSET myhash%s element:__rand_int__ %s",tag,data);
+                "kvdk.hset myhash%s element:__rand_int__ %s",tag,data);
             benchmark("HSET",cmd,len);
             free(cmd);
         }
@@ -1912,7 +1912,7 @@ int main(int argc, const char **argv) {
             char *score = "0";
             if (config.randomkeys) score = "__rand_int__";
             len = redisFormatCommand(&cmd,
-                "ZADD myzset%s %s element:__rand_int__",tag,score);
+                "kvdk.zadd myzset%s %s element:__rand_int__",tag,score);
             benchmark("ZADD",cmd,len);
             free(cmd);
         }
