@@ -60,6 +60,21 @@ KVDKEngine *engine;
 KVDKConfigs *config = NULL;
 
 static const char *enum_to_str[] = {FOREACH_ENUM(GENERATE_STRING)};
+RedisModuleDict *CollectionDict = NULL;
+
+int value_compare_func(const char *src_value, size_t src_val_len,
+                       const char *target_value, size_t target_val_len) {
+  REDISMODULE_NOT_USED(src_val_len);
+  REDISMODULE_NOT_USED(target_val_len);
+  double src_score = strtod(src_value, NULL);
+  double target_score = strtod(target_value, NULL);
+  if (src_score == target_score)
+    return 0;
+  else if (src_score < target_score)
+    return -1;
+  else
+    return 1;
+}
 
 int GetInt64Value(uint64_t *var, const char *value) {
   if (strstr(value, "<<")) {
@@ -143,7 +158,7 @@ KVDKConfigs *LoadAndCreateConfigs(RedisModuleString **argv, int argc) {
     } else if (!strcmp(config_name, "engine_path")) {
       engine_path = config_value;
     } else {
-      assert(0 && "not support this config");
+      assert(0 && "Not support this config");
     }
   }
 
@@ -168,10 +183,14 @@ int InitEngine(RedisModuleString **argv, int argc) {
 
   // open engine
   KVDKStatus s = KVDKOpen(engine_path, config, stdout, &engine);
-
   if (s != Ok) {
     return REDISMODULE_ERR;
   }
+
+  // register compare function
+  KVDKRegisterCompFunc(engine, "zset_val_compare", strlen("zset_val_compare"),
+                       value_compare_func);
+
   return REDISMODULE_OK;
 }
 
@@ -303,34 +322,36 @@ int KVDKSRemove_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   return RedisModule_ReplyWithLongLong(ctx, 1);
 }
 
-int value_compare_func(const char *src_value, size_t src_val_len,
-                       const char *target_value, size_t target_val_len) {
-  double src_score = strtod(src_value, NULL);
-  double target_score = strtod(target_value, NULL);
-  if (src_score == target_score)
-    return 0;
-  else if (src_score < target_score)
-    return -1;
-  else
-    return 1;
-}
-
 int KVDKZAdd_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                           int argc) {
   if (argc != 4)
     return RedisModule_WrongArity(ctx);
+
+  KVDKStatus s;
   size_t collection_len, key_len, val_len;
   const char *collection_str =
       RedisModule_StringPtrLen(argv[1], &collection_len);
-  const char *key_str = RedisModule_StringPtrLen(argv[2], &key_len);
-  const char *val_str = RedisModule_StringPtrLen(argv[3], &val_len);
+  const char *key_str = RedisModule_StringPtrLen(argv[3], &key_len);
+  const char *val_str = RedisModule_StringPtrLen(argv[2], &val_len);
 
-  // KVDKSetSortedCompareFunc(engine, collection_str, collection_len, NULL,
-  // value_compare_func); KVDKStatus s = KVDKSortedDelete(engine,
-  // collection_str, collection_len,
-  //                                 key_str, key_len);
-  KVDKStatus s = KVDKSortedSet(engine, collection_str, collection_len, key_str,
-                               key_len, val_str, val_len);
+  // create SortedCollection.
+  int no_key = 0;
+  const char *cmp_name = "zset_val_compare";
+  RedisModule_DictGet(CollectionDict, argv[1], &no_key);
+
+  if (no_key) {
+    KVDKCollection *collection_ptr;
+    s = KVDKCreateSortedCollection(engine, &collection_ptr, collection_str,
+                               collection_len, cmp_name, strlen(cmp_name),
+                               VALUE);
+    if (s != Ok) {
+    return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
+  }
+    RedisModule_DictSet(CollectionDict, argv[1], collection_ptr);
+  }
+
+  s = KVDKSortedSet(engine, collection_str, collection_len, key_str, key_len,
+                    val_str, val_len);
   if (s != Ok) {
     return RedisModule_ReplyWithError(ctx, enum_to_str[s]);
   }
@@ -339,7 +360,6 @@ int KVDKZAdd_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
 int KVDKLPUSH_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                            int argc) {
-  printf("arg num: %d\n", argc);
   if (argc != 3)
     return RedisModule_WrongArity(ctx);
   size_t collection_len;
@@ -421,6 +441,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (InitEngine(argv, argc) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
+  CollectionDict = RedisModule_CreateDict(ctx);
 
   // ========================== string ============================
   if (RedisModule_CreateCommand(ctx, "kvdk.set", KVDKSet_RedisCommand, "write",
@@ -474,7 +495,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv,
 }
 
 int RedisModule_OnUnload(RedisModuleCtx *ctx) {
-  REDISMODULE_NOT_USED(ctx);
+  RedisModule_FreeDict(ctx, CollectionDict);
   KVDKConfigsDestory(config);
   KVDKCloseEngine(engine);
   return REDISMODULE_OK;

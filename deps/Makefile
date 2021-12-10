@@ -94,7 +94,9 @@ jemalloc: .make-prerequisites
 
 .PHONY: jemalloc
 
+KVDK_BUILD
 kvdk: .make-prerequisites
 	@printf `%b %b\n` $(MAKECOLOR)MAKE$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR)
-	cd kvdk/build && $(MAKE)
+	@mkdir -p kvdk/build
+	cd kvdk/build && cmake .. -DCMAKE_BUILD_TYPE=Release &&$(MAKE)
 .PHONY: kvdk
